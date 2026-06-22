@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>SnakeBattle</title>
+<style>
+body{margin:0;background:#0b0f14;color:white;text-align:center;font-family:Arial;}
+canvas{display:block;margin:20px auto;border:2px solid #222;background:#05070a;}
+#gameOverScreen{
+    position:absolute;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.8);
+    color:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    font-size:30px;
+    display:none;
+}
+#gameOverScreen button{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:20px;
+    cursor:pointer;
+}
+
+#startScreen{
+    position:absolute;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    z-index:10;
+}
+
+#startScreen button{
+    margin-top:20px;
+    padding:12px 24px;
+    font-size:20px;
+    cursor:pointer;
+}
+
+.controls{
+    margin-top:15px;
+    font-size:18px;
+    opacity:0.9;
+    line-height:1.6;
+    text-align:center;
+}
+</style>
+</head>
+<body>
+<h2>🐍 SnakeBattle</h2>
+<canvas id="c" width="1400" height="800"></canvas>
+
+<div id="startScreen">
+    <h1>🐍 SnakeBattle</h1>
+
+    <div class="controls">
+        <b>Green</b><br>
+        ↑ ↓ ← →<br><br>
+
+        <b>Red</b><br>
+        W A S D
+    </div>
+
+    <button id="startBtn">Start Game</button>
+</div>
+
+<div id="gameOverScreen">
+    <div id="winnerLabel"></div>
+    <button id="restartBtn">Game over</button>
+</div>
+
+<script>
+const startScreen = document.getElementById("startScreen");
+const startBtn = document.getElementById("startBtn");
+let started = false;
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const gameOverScreen = document.getElementById("gameOverScreen");
+const winnerLabel = document.getElementById("winnerLabel");
+const restartBtn = document.getElementById("restartBtn");
+
+class Snake {
+    constructor(color, x, y){
+        this.color = color;
+        this.points = [];
+        this.head = {x:x, y:y};
+        this.speed = 3;
+        this.dir = {x:1, y:0};
+        this.length = 150;
+        for(let i=0;i<this.length;i+=5){
+            this.points.push({x:x-i, y:y});
+        }
+    }
+    update(){
+        this.head.x += this.dir.x*this.speed;
+        this.head.y += this.dir.y*this.speed;
+        this.points.unshift({x:this.head.x, y:this.head.y});
+        while(this.points.length > this.length/5){
+            this.points.pop();
+        }
+    }
+    draw(ctx){
+        ctx.beginPath();
+        for(let i=0;i<this.points.length;i++){
+            let p = this.points[i];
+            if(i===0) ctx.moveTo(p.x,p.y);
+            else ctx.lineTo(p.x,p.y);
+        }
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 12;
+        ctx.lineCap = "round";
+        ctx.stroke();
+    }
+    grow(amount){
+        this.length += amount;
+    }
+    checkCollision(other){
+        let h = this.head;
+        for(let i=0;i<other.points.length;i++){
+            let dx = h.x - other.points[i].x;
+            let dy = h.y - other.points[i].y;
+            if(Math.sqrt(dx*dx + dy*dy)<6) return true;
+        }
+        return false;
+    }
+}
+
+let apple = {x:Math.random()*canvas.width, y:Math.random()*canvas.height};
+let snake1 = new Snake("lime", 100, 100);
+let snake2 = new Snake("red", 700, 400);
+let gameOver = false;
+
+startBtn.addEventListener("click", ()=>{
+    started = true;
+    startScreen.style.display = "none";
+});
+
+function loop(){
+    if(!gameOver && started){
+        update();
+        draw();
+    }
+    requestAnimationFrame(loop);
+}
+
+function update(){
+    snake1.update();
+    snake2.update();
+
+    [snake1, snake2].forEach(s=>{
+        if(s.head.x<0||s.head.x>canvas.width||s.head.y<0||s.head.y>canvas.height){
+            endGame(s.color==="lime" ? "red" : "green");
+        }
+    });
+
+    [snake1, snake2].forEach(s=>{
+        let dx = s.head.x - apple.x;
+        let dy = s.head.y - apple.y;
+        if(Math.sqrt(dx*dx+dy*dy)<10){
+            s.grow(50);
+            apple.x = Math.random()*canvas.width;
+            apple.y = Math.random()*canvas.height;
+        }
+    });
+
+    if(snake1.checkCollision(snake2)){
+        endGame("red"); // Groen raakt rood, rood wint
+    } else if(snake2.checkCollision(snake1)){
+        endGame("green"); // Rood raakt groen, groen wint
+    }
+}
+
+function draw(){
+    ctx.fillStyle="#05070a";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    ctx.beginPath();
+    ctx.fillStyle="yellow";
+    ctx.arc(apple.x, apple.y, 8,0,Math.PI*2);
+    ctx.fill();
+
+    snake1.draw(ctx);
+    snake2.draw(ctx);
+}
+
+function endGame(winner){
+    gameOver = true;
+    winnerLabel.innerText = winner==="green" ? "Green wins!" : "Red wins!";
+    gameOverScreen.style.display = "flex";
+}
+
+function resetGame(){
+    snake1 = new Snake("lime", 100, 100);
+    snake2 = new Snake("red", 700, 400);
+    apple = {x:Math.random()*canvas.width, y:Math.random()*canvas.height};
+    gameOver = false;
+    gameOverScreen.style.display = "none";
+}
+
+// anti-reverse controls
+document.addEventListener("keydown",(e)=>{
+    if(e.key==="ArrowUp" && snake1.dir.y !== 1) snake1.dir={x:0,y:-1};
+    if(e.key==="ArrowDown" && snake1.dir.y !== -1) snake1.dir={x:0,y:1};
+    if(e.key==="ArrowLeft" && snake1.dir.x !== 1) snake1.dir={x:-1,y:0};
+    if(e.key==="ArrowRight" && snake1.dir.x !== -1) snake1.dir={x:1,y:0};
+
+    if(e.key==="w" && snake2.dir.y !== 1) snake2.dir={x:0,y:-1};
+    if(e.key==="s" && snake2.dir.y !== -1) snake2.dir={x:0,y:1};
+    if(e.key==="a" && snake2.dir.x !== 1) snake2.dir={x:-1,y:0};
+    if(e.key==="d" && snake2.dir.x !== -1) snake2.dir={x:1,y:0};
+});
+
+restartBtn.addEventListener("click", resetGame);
+
+loop();
+</script>
+</body>
+</html>

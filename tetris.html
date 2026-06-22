@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TetrisRace</title>
+
+<style>
+body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:60px;
+    background:#050814;
+    font-family:Arial;
+    color:white;
+}
+
+.title{
+    position:fixed;
+    top:-10px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:50px;
+    font-weight:900;
+    letter-spacing:10px;
+    color:ffffff;
+    text-shadow:
+        0 0 10px #00f7ff,
+        0 0 20px #00f7ff,
+        0 0 40px #00f7ff;
+}
+.player{
+    position:relative;
+    text-align:center;
+}
+
+canvas{
+    background:#0f172a;
+    border-radius:12px;
+
+    /* FIX: geen stretching/glitch */
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+.p1 canvas{ box-shadow:0 0 30px rgba(255,0,0,0.4); }
+.p2 canvas{ box-shadow:0 0 30px rgba(0,255,120,0.35); }
+
+.overlay{
+    position:absolute;
+    top:0; left:0;
+    width:384px;
+    height:704px;
+    background:rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    border-radius:12px;
+}
+
+.overlay.show{ display:flex; }
+
+button{
+    margin-top:10px;
+    padding:10px 14px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.overlay-global{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw;
+    height:100vh;
+
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    background:rgba(0,0,0,0.35);
+    backdrop-filter: blur(12px);
+
+    z-index:999;
+}
+
+.overlay-global.show{
+    display:flex;
+}
+
+#winnerText{
+    font-size:48px;
+    font-weight:bold;
+    margin-bottom:20px;
+    text-shadow:0 0 20px rgba(255,255,255,0.2);
+}
+</style>
+</head>
+
+<body>
+
+<h1 class="title">TETRIS</h1>
+
+<div class="player p1">
+    <h3 style="color:red">Player 1</h3>
+    <canvas id="c1" width="384" height="704"></canvas>
+
+    <div id="overlay" class="overlay-global">
+        <div id="winnerText"></div>
+        <button onclick="reset()">Restart</button>
+    </div>
+</div>
+
+<div class="player p2">
+    <h3 style="color:lime">Player 2</h3>
+    <canvas id="c2" width="384" height="704"></canvas>
+
+    <div class="overlay" id="o2">
+        <div id="t2"></div>
+        <button onclick="reset()">Restart</button>
+    </div>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const COLS = 12;
+const ROWS = 22;
+const SIZE = 32;
+
+/* ===================== MATRIX ===================== */
+function matrix(w,h){
+    return Array.from({length:h},()=>Array(w).fill(0));
+}
+
+/* ===================== PIECES ===================== */
+function piece(){
+    const P={
+        T:[[0,1,0],[1,1,1],[0,0,0]],
+        O:[[2,2],[2,2]],
+        L:[[0,0,3],[3,3,3],[0,0,0]],
+        J:[[4,0,0],[4,4,4],[0,0,0]],
+        I:[[0,0,0,0],[5,5,5,5],[0,0,0,0],[0,0,0,0]],
+        S:[[0,6,6],[6,6,0],[0,0,0]],
+        Z:[[7,7,0],[0,7,7],[0,0,0]]
+    };
+
+    const keys=Object.keys(P);
+    return P[keys[Math.floor(Math.random()*keys.length)]];
+}
+
+/* ===================== COLLISION ===================== */
+function collide(arena,p){
+    const m=p.matrix;
+    const o=p.pos;
+
+    for(let y=0;y<m.length;y++){
+        for(let x=0;x<m[y].length;x++){
+            if(m[y][x]){
+                if(!arena[y+o.y] || arena[y+o.y][x+o.x] !== 0){
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/* ===================== MERGE ===================== */
+function merge(arena,p){
+    p.matrix.forEach((row,y)=>{
+        row.forEach((v,x)=>{
+            if(v){
+                arena[y+p.pos.y][x+p.pos.x]=v;
+            }
+        });
+    });
+}
+
+/* ===================== ROTATE ===================== */
+function rotate(m){
+    return m[0].map((_,i)=>m.map(r=>r[i]).reverse());
+}
+
+/* ===================== CLEAR LINES ===================== */
+function sweep(arena){
+    for(let y=arena.length-1;y>=0;y--){
+        if(arena[y].every(v=>v!==0)){
+            arena.splice(y,1);
+            arena.unshift(Array(COLS).fill(0));
+            y++;
+        }
+    }
+}
+
+/* ===================== DRAW ===================== */
+const colors=[null,"red","orange","blue","purple","cyan","lime","pink"];
+
+function draw(ctx,arena,p){
+    ctx.clearRect(0,0,384,704);
+
+    arena.forEach((row,y)=>{
+        row.forEach((v,x)=>{
+            if(v){
+                ctx.fillStyle=colors[v];
+                ctx.fillRect(x*SIZE,y*SIZE,SIZE,SIZE);
+            }
+        });
+    });
+
+    p.matrix.forEach((row,y)=>{
+        row.forEach((v,x)=>{
+            if(v){
+                ctx.fillStyle=colors[v];
+                ctx.fillRect(
+                    (x+p.pos.x)*SIZE,
+                    (y+p.pos.y)*SIZE,
+                    SIZE,SIZE
+                );
+            }
+        });
+    });
+}
+
+/* ===================== PLAYER ===================== */
+function createPlayer(){
+    return{
+        arena:matrix(COLS,ROWS),
+        pos:{x:4,y:0},
+        matrix:piece(),
+        dropCounter:0,
+        dropInterval:300,
+        alive:true
+    };
+}
+
+let p1=createPlayer();
+let p2=createPlayer();
+
+/* ===================== GAME STATE ===================== */
+let gameEnded=false;
+let last=0;
+
+/* ===================== GAME OVER ===================== */
+function gameOver(id){
+    if(gameEnded) return;
+    gameEnded=true;
+
+    p1.alive=false;
+    p2.alive=false;
+
+    const overlay=document.getElementById("overlay");
+    const text=document.getElementById("winnerText");
+
+    text.innerText = id===1 ? "Player 2 wins!" : "Player 1 wins!";
+    text.style.color = id===1 ? "lime" : "red";
+
+    overlay.classList.add("show");
+}
+
+/* ===================== RESET ===================== */
+function reset(){
+    p1=createPlayer();
+    p2=createPlayer();
+
+    document.getElementById("overlay").classList.remove("show");
+
+    gameEnded=false;
+    last=0;
+
+    requestAnimationFrame(loop);
+}
+
+/* ===================== DROP ===================== */
+function drop(p,id){
+    if(!p.alive || gameEnded) return;
+
+    p.pos.y++;
+
+    if(collide(p.arena,p)){
+        p.pos.y--;
+        merge(p.arena,p);
+        sweep(p.arena);
+
+        p.matrix=piece();
+        p.pos={x:4,y:0};
+
+        if(collide(p.arena,p)){
+            gameOver(id);
+        }
+    }
+
+    p.dropCounter=0;
+}
+
+/* ===================== MOVE ===================== */
+function move(p,d){
+    if(!p.alive || gameEnded) return;
+
+    p.pos.x+=d;
+
+    if(collide(p.arena,p)){
+        p.pos.x-=d;
+    }
+
+    p.pos.x=Math.round(p.pos.x);
+}
+
+/* ===================== ROTATE ===================== */
+function rot(p){
+    if(!p.alive || gameEnded) return;
+
+    const old=p.matrix;
+    p.matrix=rotate(p.matrix);
+
+    if(collide(p.arena,p)){
+        p.matrix=old;
+    }
+}
+
+/* ===================== CANVAS ===================== */
+const c1=document.getElementById("c1");
+const c2=document.getElementById("c2");
+const ctx1=c1.getContext("2d");
+const ctx2=c2.getContext("2d");
+
+/* ===================== INPUT ===================== */
+document.addEventListener("keydown",e=>{
+    if(gameEnded) return;
+
+    if(e.key==="a")move(p1,-1);
+    if(e.key==="d")move(p1,1);
+    if(e.key==="w")rot(p1);
+    if(e.key==="s")drop(p1,1);
+
+    if(e.key==="ArrowLeft")move(p2,-1);
+    if(e.key==="ArrowRight")move(p2,1);
+    if(e.key==="ArrowUp")rot(p2);
+    if(e.key==="ArrowDown")drop(p2,2);
+});
+
+/* ===================== LOOP ===================== */
+function loop(t=0){
+    if(gameEnded) return;
+
+    const d=t-last;
+    last=t;
+
+    [p1,p2].forEach((p,i)=>{
+        if(!p.alive) return;
+
+        p.dropCounter+=d;
+
+        if(p.dropCounter>p.dropInterval){
+            drop(p,i+1);
+        }
+    });
+
+    draw(ctx1,p1.arena,p1);
+    draw(ctx2,p2.arena,p2);
+
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

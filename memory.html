@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<title>MemoryBattle</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: radial-gradient(circle at top, #1a1a1a, #1a1a1a);
+  color: white;
+  text-align: center;
+  padding-top: 60px;
+}
+
+h1 {
+  margin: 30px 0 10px;
+  font-size: 42px;
+  color: #00d9ff;
+  text-shadow:
+    0 0 4px #00d9ff,
+    0 0 10px rgba(0, 217, 255, 0.6),
+    0 0 18px rgba(0, 150, 255, 0.4);
+}
+
+.info {
+  display: flex;
+  justify-content: space-around;
+  padding: 12px;
+  max-width: 700px;
+  margin: auto;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+}
+
+.p1 { color: red; font-weight: bold; }
+.p2 { color: lime; font-weight: bold; }
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(6, 75px);
+  grid-template-rows: repeat(6, 75px);
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.card {
+  width: 75px;
+  height: 75px;
+  perspective: 600px;
+  cursor: pointer;
+}
+
+.inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s;
+}
+
+.card.flipped .inner {
+  transform: rotateY(180deg);
+}
+
+.face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  backface-visibility: hidden;
+}
+
+.front {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.back {
+  background: white;
+  color: black;
+  transform: rotateY(180deg);
+}
+
+.matched .front {
+  background: #00c853;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backdrop-filter: blur(10px);
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 999;
+}
+
+button {
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: white;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧠 MemoryBattle</h1>
+
+<div class="info">
+  <div class="p1">🔴 Player 1: <span id="s1">0</span></div>
+  <div>Turn: <span id="turn">Player 1</span></div>
+  <div class="p2">🟢 Player 2: <span id="s2">0</span></div>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="overlay" id="overlay">
+  <h2 id="winnerText"></h2>
+  <button onclick="restart()">🔄 Play again</button>
+</div>
+
+<script>
+const symbols = [
+"🍎","🍌","🍇","🍒","🍉","🍍",
+"🥝","🍑","🍓","🍋","🍈","🍊",
+"🥥","🥑","🍐","🍏","🍅","🌽"
+];
+
+// 👉 18 paren = 36 kaarten
+let cards = [...symbols, ...symbols]
+  .map(s => ({ type: "pair", symbol: s }))
+  .sort(() => Math.random() - 0.5);
+
+let first = null;
+let second = null;
+let lock = false;
+
+let player = 1;
+let score = {1: 0, 2: 0};
+
+const board = document.getElementById("board");
+const overlay = document.getElementById("overlay");
+const winnerText = document.getElementById("winnerText");
+
+function buildBoard() {
+  board.innerHTML = "";
+
+  cards.forEach((cardData, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.dataset.symbol = cardData.symbol;
+    card.dataset.index = i;
+
+    card.innerHTML = `
+      <div class="inner">
+        <div class="face front"></div>
+        <div class="face back">${cardData.symbol}</div>
+      </div>
+    `;
+
+    card.onclick = () => flip(card);
+    board.appendChild(card);
+  });
+}
+
+buildBoard();
+
+function flip(card) {
+  if (lock || card.classList.contains("flipped") || card.classList.contains("matched")) return;
+
+  card.classList.add("flipped");
+
+  if (!first) {
+    first = card;
+    return;
+  }
+
+  second = card;
+  lock = true;
+
+  if (first.dataset.symbol === second.dataset.symbol) {
+    first.classList.add("matched");
+    second.classList.add("matched");
+
+    score[player]++;
+    updateScore();
+
+    resetTurn();
+  } else {
+    setTimeout(() => {
+      first.classList.remove("flipped");
+      second.classList.remove("flipped");
+      resetTurn();
+    }, 800);
+  }
+
+  checkWin();
+}
+
+function resetTurn() {
+  first = null;
+  second = null;
+  lock = false;
+  switchTurn();
+}
+
+function switchTurn() {
+  player = player === 1 ? 2 : 1;
+  document.getElementById("turn").innerText =
+    player === 1 ? "Player 1" : "Player 2";
+}
+
+function updateScore() {
+  document.getElementById("s1").innerText = score[1];
+  document.getElementById("s2").innerText = score[2];
+}
+
+function checkWin() {
+  const totalPairs = cards.length;
+  const matched = document.querySelectorAll(".matched").length;
+
+  if (matched === totalPairs) {
+    let winner =
+      score[1] > score[2] ? "🔴 Player 1 wins!"
+      : score[2] > score[1] ? "🟢 Player 2 wins!"
+      : "⚖️ Draw!";
+
+    winnerText.innerText = winner;
+    overlay.style.display = "flex";
+  }
+}
+
+function restart() {
+  location.reload();
+}
+</script>
+
+</body>
+</html>

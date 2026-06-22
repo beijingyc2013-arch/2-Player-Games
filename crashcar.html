@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrashCars</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #1a1a1a, #050505);
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+#restartBtn {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 18px 60px;
+  font-size: 26px;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(135deg, #ff2d2d, #ff7a18);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  display: none;
+  z-index: 3;
+  box-shadow: 0 0 25px rgba(255, 80, 0, 0.6);
+  transition: 0.2s ease;
+}
+
+#restartBtn:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 0 40px rgba(255, 120, 0, 0.9);
+}
+
+canvas {
+  display: block;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+<button id="restartBtn">Restart</button>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+let gameDuration = 180000;
+let startTime = Date.now();
+let gameOver = false;
+
+const arena = {
+  x: 50,
+  y: 80,
+  w: canvas.width - 100,
+  h: canvas.height - 130
+};
+
+let p1Hits = 0;
+let p2Hits = 0;
+let lastCollisionTime = 0;
+
+class Car {
+  constructor(x, y, color, controls) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.controls = controls;
+    this.speed = 0;
+    this.angle = 0;
+    this.w = 40;
+    this.h = 20;
+  }
+
+  update() {
+    if (keys[this.controls.up]) this.speed += 0.25;
+    if (keys[this.controls.down]) this.speed -= 0.2;
+
+    this.speed = Math.max(-6, Math.min(8, this.speed));
+
+    if (keys[this.controls.left]) this.angle -= 0.05 * (this.speed / 3);
+    if (keys[this.controls.right]) this.angle += 0.05 * (this.speed / 3);
+
+    this.x += Math.cos(this.angle) * this.speed;
+    this.y += Math.sin(this.angle) * this.speed;
+
+    this.speed *= 0.96;
+
+    if (this.x < arena.x) { this.x = arena.x; this.speed *= -0.4; }
+    if (this.x > arena.x + arena.w) { this.x = arena.x + arena.w; this.speed *= -0.4; }
+    if (this.y < arena.y) { this.y = arena.y; this.speed *= -0.4; }
+    if (this.y > arena.y + arena.h) { this.y = arena.y + arena.h; this.speed *= -0.4; }
+  }
+
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = this.color;
+
+    ctx.fillStyle = this.color;
+    ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
+
+    ctx.restore();
+  }
+}
+
+const p1 = new Car(200, 200, "red", {up:"w", down:"s", left:"a", right:"d"});
+const p2 = new Car(400, 300, "lime", {up:"ArrowUp", down:"ArrowDown", left:"ArrowLeft", right:"ArrowRight"});
+
+function collide(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  const now = Date.now();
+
+  if (dist < 35) {
+    if (now - lastCollisionTime > 500) {
+      lastCollisionTime = now;
+
+      const aSpeed = Math.abs(a.speed);
+      const bSpeed = Math.abs(b.speed);
+
+      // 🔴 p1 = red, 🟢 p2 = green
+      if (aSpeed > bSpeed) {
+        if (a === p1) p1Hits++;
+        else p2Hits++;
+      }
+      else if (bSpeed > aSpeed) {
+        if (b === p1) p1Hits++;
+        else p2Hits++;
+      }
+      else {
+        p1Hits++;
+        p2Hits++;
+      }
+    }
+
+    a.speed *= -0.5;
+    b.speed *= -0.5;
+
+    a.x += dx * 0.3;
+    a.y += dy * 0.3;
+    b.x -= dx * 0.3;
+    b.y -= dy * 0.3;
+  }
+}
+
+function drawArena() {
+  ctx.fillStyle = "#0a0a0a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.03)";
+
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(arena.x, arena.y, arena.w, arena.h);
+
+  const elapsed = Date.now() - startTime;
+  const remaining = Math.max(0, gameDuration - elapsed);
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.font = "bold 22px Segoe UI";
+  ctx.textAlign = "center";
+
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = "black";
+
+  ctx.fillText(
+    `RED: ${p1Hits}   ⚡   GREEN: ${p2Hits}   ⏱ ${minutes}:${seconds.toString().padStart(2,'0')}`,
+    canvas.width / 2,
+    45
+  );
+}
+
+const restartBtn = document.getElementById("restartBtn");
+
+restartBtn.addEventListener("click", () => location.reload());
+
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const elapsed = Date.now() - startTime;
+  if (elapsed >= gameDuration) gameOver = true;
+
+  drawArena();
+
+  if (!gameOver) {
+    p1.update();
+    p2.update();
+    collide(p1, p2);
+
+    p1.draw();
+    p2.draw();
+
+    requestAnimationFrame(loop);
+  } else {
+    restartBtn.style.display = "block";
+
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    ctx.font = "48px Segoe UI";
+    ctx.textAlign = "center";
+
+    let winner = p1Hits > p2Hits ? "Red wins!" :
+                 p2Hits > p1Hits ? "Green wins!" : "Draw!";
+
+    ctx.fillText("⏱ Time is over!", canvas.width/2, canvas.height/2 - 60);
+    ctx.fillText(winner, canvas.width/2, canvas.height/2 + 10);
+  }
+}
+
+loop();
+</script>
+
+</body>
+</html>

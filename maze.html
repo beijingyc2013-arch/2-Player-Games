@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<title>MazeRace</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    font-family: Arial;
+  }
+
+  canvas { display: block; }
+
+  #ui {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    color: white;
+    z-index: 10;
+  }
+
+  #winner {
+    color: yellow;
+    margin-top: 5px;
+  }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+    z-index: 20;
+    color: white;
+  }
+
+  #overlay h1 {
+    font-size: 40px;
+    margin-bottom: 20px;
+  }
+
+  #restartBtn {
+    padding: 10px 20px;
+    font-size: 18px;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="overlay">
+  <h1 id="gameOverText"></h1>
+  <button id="restartBtn">Play again</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// fullscreen
+function resize(){
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+addEventListener("resize", resize);
+resize();
+
+const SIZE = 20;
+const cols = (Math.floor(canvas.width / SIZE) | 1);
+const rows = (Math.floor(canvas.height / SIZE) | 1);
+
+// maze
+let maze = Array.from({length: rows}, () =>
+  Array.from({length: cols}, () => 1)
+);
+
+// --------------------
+// PERFECT MAZE (1 oplossing gegarandeerd)
+// --------------------
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    let j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function carve(x,y){
+  maze[y][x]=0;
+
+  let dirs = shuffle([
+    [0,-2],[0,2],[-2,0],[2,0]
+  ]);
+
+  for(let [dx,dy] of dirs){
+    let nx=x+dx, ny=y+dy;
+
+    if(ny>0 && ny<rows && nx>0 && nx<cols && maze[ny][nx]===1){
+      maze[y+dy/2][x+dx/2]=0;
+      carve(nx,ny);
+    }
+  }
+}
+
+// start
+carve(1,1);
+
+// --------------------
+// EXTRA "DOOLHOF COMPLEXITEIT" (NIET DE OPLOSSING VERSTORING)
+// --------------------
+// we openen alleen GESELECTEERDE muren tussen bestaande paden
+function addLoops(chance=0.03){
+  for(let y=1;y<rows-1;y++){
+    for(let x=1;x<cols-1;x++){
+      if(Math.random()<chance && maze[y][x]===1){
+
+        // check of het twee paden verbindt (belangrijk!)
+        let paths = 0;
+
+        if(maze[y-1][x]===0) paths++;
+        if(maze[y+1][x]===0) paths++;
+        if(maze[y][x-1]===0) paths++;
+        if(maze[y][x+1]===0) paths++;
+
+        if(paths <= 1){
+          // alleen doodlopende tak → geen shortcut naar exit
+          maze[y][x]=0;
+        }
+      }
+    }
+  }
+}
+
+addLoops(0.08);
+
+// --------------------
+// EXIT + SPAWNS
+// --------------------
+const exit = {
+  x: Math.floor(cols/2),
+  y: rows-2
+};
+
+maze[exit.y][exit.x]=0;
+
+const lime = {x:1,y:1,color:"lime"};
+const red = {x:cols-2,y:1,color:"red"};
+
+let gameOver=false;
+
+function win(p){
+  if(gameOver) return;
+  gameOver = true;
+
+  document.getElementById("gameOverText").innerText =
+    (p === lime ? "Green wins" : "Red wins")
+
+  document.getElementById("overlay").style.display = "flex";
+}
+
+function can(x,y){
+  return maze[y] && maze[y][x]===0;
+}
+
+// --------------------
+// INPUT
+// --------------------
+addEventListener("keydown",(e)=>{
+  if(gameOver) return;
+
+  // GREEN = pijltjes
+  if(e.key==="ArrowUp"&&can(lime.x,lime.y-1)) lime.y--;
+  if(e.key==="ArrowDown"&&can(lime.x,lime.y+1)) lime.y++;
+  if(e.key==="ArrowLeft"&&can(lime.x-1,lime.y)) lime.x--;
+  if(e.key==="ArrowRight"&&can(lime.x+1,lime.y)) lime.x++;
+
+  // RED = WASD
+  if(e.key==="w"&&can(red.x,red.y-1)) red.y--;
+  if(e.key==="s"&&can(red.x,red.y+1)) red.y++;
+  if(e.key==="a"&&can(red.x-1,red.y)) red.x--;
+  if(e.key==="d"&&can(red.x+1,red.y)) red.x++;
+
+  if(lime.x===exit.x&&lime.y===exit.y) win(lime);
+  if(red.x===exit.x&&red.y===exit.y) win(red);
+});
+
+// --------------------
+// DRAW
+// --------------------
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      ctx.fillStyle = maze[y][x] ? "#222" : "#000";
+      ctx.fillRect(x*SIZE,y*SIZE,SIZE,SIZE);
+    }
+  }
+
+  // exit
+  ctx.fillStyle="gold";
+  ctx.fillRect(exit.x*SIZE,exit.y*SIZE,SIZE,SIZE);
+
+  // players
+  ctx.fillStyle=lime.color;
+  ctx.fillRect(lime.x*SIZE,lime.y*SIZE,SIZE,SIZE);
+
+  ctx.fillStyle=red.color;
+  ctx.fillRect(red.x*SIZE,red.y*SIZE,SIZE,SIZE);
+}
+
+function loop(){
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+document.getElementById("restartBtn").addEventListener("click", () => {
+  location.reload();
+});
+</script>
+
+</body>
+</html>

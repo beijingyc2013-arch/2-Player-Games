@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StartPage</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: white;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    margin-bottom: 30px;
+    font-size: 42px;
+    color: #00ffcc;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+
+    /* LED glow */
+    text-shadow:
+        0 0 5px #00ffcc,
+        0 0 10px #00ffcc,
+        0 0 20px #00ffcc,
+        0 0 40px #00ffcc;
+
+    animation: flicker 1.8s infinite alternate;
+}
+
+.made-by {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    font-size: 20px;
+    color: #00ffcc;
+    font-family: Arial, sans-serif;
+    opacity: 0.8;
+
+    /* neon glow */
+    text-shadow:
+        0 0 5px #00ffcc,
+        0 0 10px #00ffcc,
+        0 0 20px #00ffcc;
+
+    animation: flicker 2s infinite alternate;
+}
+
+.footer-item {
+    position: fixed;
+    left: 10px;
+    color: #00ffcc;
+    font-family: Arial, sans-serif;
+    opacity: 0.85;
+
+    text-shadow:
+        0 0 5px #00ffcc,
+        0 0 10px #00ffcc;
+}
+
+/* elke tekst apart plaatsen */
+.item1 {
+    bottom: 45px;
+    left: 10px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.item2 {
+    bottom: 25px;
+    left: 10px;
+    font-size: 13px;
+}
+
+.item3 {
+    bottom: 10px;
+    left: 10px;
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+/* optioneel: zachte flicker */
+.footer-left {
+    animation: flicker 2.5s infinite alternate;
+}
+
+/* subtiele knipper (LED effect) */
+@keyframes flicker {
+    0% {
+        opacity: 1;
+        text-shadow:
+            0 0 5px #00ffcc,
+            0 0 10px #00ffcc,
+            0 0 20px #00ffcc,
+            0 0 40px #00ffcc;
+    }
+    100% {
+        opacity: 0.85;
+        text-shadow:
+            0 0 2px #00ffcc,
+            0 0 8px #00ffcc,
+            0 0 15px #00ffcc;
+    }
+}
+
+.spellen-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.spel {
+    background-color: #1f1f1f;
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.spel img {
+    height: 150px; /* rechthoekige foto's */
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.spelnaam {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<h1>Choose a game</h1>
+
+<div class="footer-item item1">Made by Yi Chen</div>
+<div class="footer-item item2">Build in Python & Html</div>
+<div class="footer-item item3">Since 2026 • YCWebDesigns.com</div>
+
+<div class="spellen-container">
+
+    <div class="spel" onclick="startSpel('snake.html')">
+        <img src="fotos/snake.png" alt="Snake">
+        <div class="spelnaam">SnakeBattle</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('crashcar.html')">
+        <img src="fotos/crashcars.png" alt="Race">
+        <div class="spelnaam">CrashCars</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('space.html')">
+        <img src="fotos/space.png" alt="Pong">
+        <div class="spelnaam">SpaceShooter</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('tank.html')">
+        <img src="fotos/tank.png" alt="Avontuur">
+        <div class="spelnaam">ShooterTanks</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('pong.html')">
+        <img src="fotos/pong.png" alt="Space">
+        <div class="spelnaam">PongGame</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('maze.html')">
+        <img src="fotos/maze.png" alt="Memory">
+        <div class="spelnaam">MazeRace</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('tictactoe.html')">
+        <img src="fotos/tictactoe.png" alt="Platform">
+        <div class="spelnaam">TicTacToe</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('tetris.html')">
+        <img src="fotos/tetris.png" alt="Tetris">
+        <div class="spelnaam">TetrisRace</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('flappybird.html')">
+        <img src="fotos/flappybird.png" alt="Flappy">
+        <div class="spelnaam">Flappy Bird</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('4opeenrij.html')">
+        <img src="fotos/4opeenrij.png" alt="Doolhof">
+        <div class="spelnaam">ConnectFour</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('simonsays.html')">
+        <img src="fotos/simonsays.png" alt="Breakout">
+        <div class="spelnaam">SimonSays</div>
+    </div>
+
+    <div class="spel" onclick="startSpel('memory.html')">
+        <img src="fotos/memory.png" alt="Pacman">
+        <div class="spelnaam">MemoryBattle</div>
+    </div>
+
+</div>
+
+<script>
+function startSpel(bestand) {
+    window.location.href = bestand;
+    // Hier kun je later integreren met Python
+    // Bijvoorbeeld via Flask: window.location.href = '/start/' + bestand;
+}
+</script>
+
+</body>
+</html>

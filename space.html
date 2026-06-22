@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>SpaceShooter</title>
+<style>
+  body { margin:0; overflow:hidden; background:black; font-family: monospace; }
+  canvas { display:block; }
+  #gameOverBtn {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px 40px;
+    font-size: 24px;
+    background: yellow;
+    color: black;
+    border: none;
+    cursor: pointer;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button id="gameOverBtn">Play again</button>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const btn = document.getElementById('gameOverBtn');
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+const stars = Array.from({length:150}, () => ({
+  x: Math.random()*canvas.width,
+  y: Math.random()*canvas.height,
+  size: Math.random()*2,
+  speed: Math.random()*0.5+0.2
+}));
+
+function createShip(x,y,color){
+  return { x, y, angle:0, vx:0, vy:0, rotSpeed:0, accel:0, color, hp:5, shootLock:false, mass:1 };
+}
+
+let p1 = createShip(200, canvas.height/2, 'Red');
+let p2 = createShip(canvas.width-200, canvas.height/2, 'Lime');
+
+const bullets = [];
+const explosions = [];
+
+const keys = {};
+
+// Keydown: letters lowercase, speciale toetsen exact
+document.addEventListener('keydown', e => {
+    if(e.key.length === 1) keys[e.key.toLowerCase()] = true; // letters en cijfers
+    else keys[e.key] = true; // pijltjestoetsen, Enter, Shift, etc.
+});
+
+// Keyup: hetzelfde principe
+document.addEventListener('keyup', e => {
+    if(e.key.length === 1) keys[e.key.toLowerCase()] = false;
+    else keys[e.key] = false;
+});
+
+function shoot(ship){
+  const speed = 8;
+  bullets.push({
+    x: ship.x + Math.cos(ship.angle)*20,
+    y: ship.y + Math.sin(ship.angle)*20,
+    vx: Math.cos(ship.angle)*speed,
+    vy: Math.sin(ship.angle)*speed,
+    from: ship
+  });
+}
+
+function updateShip(ship, controls){
+  ship.rotSpeed = 0; ship.accel = 0;
+  if(keys[controls.left]) ship.rotSpeed=-0.05;
+  if(keys[controls.right]) ship.rotSpeed=0.05;
+  if(keys[controls.up]) ship.accel=0.2;
+  if(keys[controls.down]) ship.accel=-0.1;
+
+  ship.angle+=ship.rotSpeed;
+  ship.vx += Math.cos(ship.angle)*ship.accel;
+  ship.vy += Math.sin(ship.angle)*ship.accel;
+
+  ship.vx *= 0.98; ship.vy *= 0.98;
+  ship.x += ship.vx; ship.y += ship.vy;
+
+  // wrap-around scherm
+  if (ship.x < 0) ship.x = canvas.width;
+  if (ship.x > canvas.width) ship.x = 0;
+  if (ship.y < 0) ship.y = canvas.height;
+  if (ship.y > canvas.height) ship.y = 0;
+
+  if(keys[controls.shoot] && !ship.shootLock){
+    shoot(ship);
+    ship.shootLock=true;
+    setTimeout(()=>ship.shootLock=false,300);
+  }
+}
+
+function resolveShipCollision(a, b){
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  const minDist = 25;
+
+  if(dist === 0 || dist >= minDist) return;
+
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  const overlap = minDist - dist;
+
+  a.x -= nx * overlap * 0.5;
+  a.y -= ny * overlap * 0.5;
+  b.x += nx * overlap * 0.5;
+  b.y += ny * overlap * 0.5;
+
+  const rvx = b.vx - a.vx;
+  const rvy = b.vy - a.vy;
+
+  const velAlongNormal = rvx * nx + rvy * ny;
+
+  if(velAlongNormal > 0) return;
+
+  const restitution = 0.6;
+
+  const impulse = -(1 + restitution) * velAlongNormal;
+  const j = impulse / (1/a.mass + 1/b.mass);
+
+  const ix = j * nx;
+  const iy = j * ny;
+
+  a.vx -= ix / a.mass;
+  a.vy -= iy / a.mass;
+  b.vx += ix / b.mass;
+  b.vy += iy / b.mass;
+}
+
+function updateBullets(){
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i]; b.x+=b.vx; b.y+=b.vy;
+
+    [p1,p2].forEach(ship=>{
+      if(b.from!==ship && Math.hypot(b.x-ship.x,b.y-ship.y)<15){
+        ship.hp--;
+        explosions.push({x:ship.x, y:ship.y, t:20});
+        bullets.splice(i,1);
+      }
+    });
+
+    if(b.x<0||b.x>canvas.width||b.y<0||b.y>canvas.height) bullets.splice(i,1);
+  }
+}
+
+function updateStars(){
+  stars.forEach(s=>{
+    s.x-=s.speed;
+    if(s.x<0){s.x=canvas.width; s.y=Math.random()*canvas.height;}
+  });
+}
+
+function drawShip(ship){
+  ctx.save();
+  ctx.translate(ship.x, ship.y);
+  ctx.rotate(ship.angle);
+  ctx.fillStyle=ship.color;
+  ctx.beginPath();
+  ctx.moveTo(15,0); ctx.lineTo(-10,10); ctx.lineTo(-10,-10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+let gameOver=false;
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="white";
+  stars.forEach(s=>ctx.fillRect(s.x,s.y,s.size,s.size));
+
+  drawShip(p1);
+  drawShip(p2);
+
+  ctx.fillStyle="yellow";
+  bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,2));
+
+  explosions.forEach((e,i)=>{
+    ctx.fillStyle=`rgba(255,165,0,${e.t/20})`;
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,10*(1-e.t/20),0,Math.PI*2);
+    ctx.fill();
+    e.t--;
+    if(e.t<=0) explosions.splice(i,1);
+  });
+
+  ctx.fillStyle="Red";
+  ctx.fillRect(20,20,p1.hp*20,10);
+
+  ctx.fillStyle="Lime";
+  ctx.fillRect(canvas.width-120,20,p2.hp*20,10);
+
+  if(p1.hp<=0 || p2.hp<=0){
+    gameOver=true;
+    btn.style.display="block";
+
+    ctx.fillStyle="yellow";
+    ctx.font="50px monospace";
+    ctx.fillText(p1.hp<=0?"  Green wins!":"   Red wins!", canvas.width/2-200, canvas.height/2-50);
+  }
+}
+
+btn.addEventListener('click',()=>{
+  p1=createShip(200, canvas.height/2, 'Red');
+  p2=createShip(canvas.width-200, canvas.height/2, 'Lime');
+  bullets.length=0; explosions.length=0;
+  gameOver=false; btn.style.display='none';
+});
+
+function loop(){
+  if(!gameOver){
+    // Speler 1: WASD + Shift
+    updateShip(p1,{
+      up: "w",
+      down: "s",
+      left: "a",
+      right: "d",
+      shoot: "Shift"   // hoofdletter S, zo registreert browser Shift correct
+    });
+
+    // Speler 2: pijltjestoetsen + Enter
+    updateShip(p2,{
+      up: "ArrowUp",
+      down: "ArrowDown",
+      left: "ArrowLeft",
+      right: "ArrowRight",
+      shoot: "Enter"
+    });
+
+    resolveShipCollision(p1,p2);
+    updateBullets();
+    updateStars();
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
