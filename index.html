@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -15,14 +16,14 @@ body {
     padding: 20px;
 }
 
+/* TITEL */
 h1 {
     margin-bottom: 30px;
-    font-size: 42px;
+    font-size: clamp(24px, 4vw, 42px);
     color: #00ffcc;
     text-transform: uppercase;
     letter-spacing: 3px;
 
-    /* LED glow */
     text-shadow:
         0 0 5px #00ffcc,
         0 0 10px #00ffcc,
@@ -32,89 +33,16 @@ h1 {
     animation: flicker 1.8s infinite alternate;
 }
 
-.made-by {
-    position: fixed;
-    bottom: 10px;
-    left: 10px;
-    font-size: 20px;
-    color: #00ffcc;
-    font-family: Arial, sans-serif;
-    opacity: 0.8;
-
-    /* neon glow */
-    text-shadow:
-        0 0 5px #00ffcc,
-        0 0 10px #00ffcc,
-        0 0 20px #00ffcc;
-
-    animation: flicker 2s infinite alternate;
-}
-
-.footer-item {
-    position: fixed;
-    left: 10px;
-    color: #00ffcc;
-    font-family: Arial, sans-serif;
-    opacity: 0.85;
-
-    text-shadow:
-        0 0 5px #00ffcc,
-        0 0 10px #00ffcc;
-}
-
-/* elke tekst apart plaatsen */
-.item1 {
-    bottom: 45px;
-    left: 10px;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.item2 {
-    bottom: 25px;
-    left: 10px;
-    font-size: 13px;
-}
-
-.item3 {
-    bottom: 10px;
-    left: 10px;
-    font-size: 10px;
-    opacity: 0.7;
-}
-
-/* optioneel: zachte flicker */
-.footer-left {
-    animation: flicker 2.5s infinite alternate;
-}
-
-/* subtiele knipper (LED effect) */
-@keyframes flicker {
-    0% {
-        opacity: 1;
-        text-shadow:
-            0 0 5px #00ffcc,
-            0 0 10px #00ffcc,
-            0 0 20px #00ffcc,
-            0 0 40px #00ffcc;
-    }
-    100% {
-        opacity: 0.85;
-        text-shadow:
-            0 0 2px #00ffcc,
-            0 0 8px #00ffcc,
-            0 0 15px #00ffcc;
-    }
-}
-
+/* GRID -> RESPONSIVE */
 .spellen-container {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 20px;
     max-width: 1200px;
     margin: 0 auto;
 }
 
+/* SPEL BOX */
 .spel {
     background-color: #1f1f1f;
     border-radius: 12px;
@@ -123,16 +51,54 @@ h1 {
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.spel:hover {
+    transform: scale(1.05);
+}
+
+/* IMAGE RESPONSIVE */
 .spel img {
-    height: 150px; /* rechthoekige foto's */
+    width: 100%;
+    height: auto;
+    max-height: 140px;
     object-fit: cover;
     border-radius: 8px;
 }
 
+/* TEKST */
 .spelnaam {
     margin-top: 10px;
-    font-size: 18px;
+    font-size: clamp(12px, 2vw, 18px);
     font-weight: bold;
+}
+
+/* FOOTER (RESPONSIVE FIX) */
+.footer-item {
+    position: fixed;
+    left: 10px;
+    color: #00ffcc;
+    font-family: Arial, sans-serif;
+    opacity: 0.85;
+    text-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc;
+}
+
+/* STACK BETTER OP KLEINE SCHERMEN */
+.item1 { bottom: 45px; font-size: clamp(12px, 2vw, 20px); }
+.item2 { bottom: 25px; font-size: clamp(10px, 1.8vw, 13px); }
+.item3 { bottom: 8px; font-size: clamp(9px, 1.5vw, 10px); opacity: 0.7; }
+
+/* MOBILE EXTRA FIX */
+@media (max-width: 500px) {
+    body {
+        padding: 10px;
+    }
+
+    .spellen-container {
+        gap: 12px;
+    }
+
+    .footer-item {
+        left: 5px;
+    }
 }
 </style>
 </head>
